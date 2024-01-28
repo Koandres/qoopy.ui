@@ -29,13 +29,13 @@ interface ApiResponse<T> {
 
 interface App {
     id: number,
-    package_id: string,
+    package_id?: string,
     app_name: string,
     display_name: string,
     icon_url: string,
     company: AppCompany,
     is_apk_ready: boolean,
-    apk?: AppApk,
+    apk: AppApk,
     download?: string
 }
 
@@ -45,10 +45,10 @@ interface AppCompany {
 }
 
 interface AppApk {
-    updated_at: string,
+    updated_at?: string,
     version_name: string,
     version_code: number,
-    file_size: string
+    file_size?: string
 }
 
 function show(element: HTMLElement) {
@@ -68,7 +68,7 @@ function showAppDetails(app: App) {
     appIcon.src = app.icon_url + "?w=96";
     appName.innerText = app.display_name;
     appCompany.innerText = app.company.name;
-    if (app.is_apk_ready && app.apk && app.download) {
+    if (app.is_apk_ready && app.apk.updated_at != null && app.apk.file_size != null && app.download) {
         appVersion.innerText = app.apk.version_name;
         appUpdatedAt.innerText = app.apk.updated_at;
         downloadBox.classList.remove("na");
