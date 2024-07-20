@@ -51,9 +51,17 @@
                 </div>
               </div>
               <div id="downloadBox">
+                <a id="xapkButton" class="button">
+                  <span class="material-symbols-outlined">&#xf090;</span>
+                  <span>XAPK</span>
+                </a>
                 <a id="downloadButton" class="button" target="_blank">
                   <span class="material-symbols-outlined">&#xf090;</span>
-                  Download (<span id="downloadSize">0.00MB</span>)
+                  <span id="downloadBtnLabel">Download (0.00MB)</span>
+                </a>
+                <a id="splitsButton" class="button secondary">
+                  <span class="material-symbols-outlined">&#xf090;</span>
+                  <span>Split APKs</span>
                 </a>
                 <div class="download-na">
                   Not available for download.
@@ -76,10 +84,44 @@
 
     <div id="challengeModal" class="modal"></div>
 
-    <div id="errorDialog" class="modal">
-      <h2><span class="material-symbols-outlined">&#xe000;</span> Error</h2>
-      <div id="errorDialogBody"></div>
+    <div id="errorDialog" class="modal dialog">
+      <h2><span class="material-symbols-outlined icon">&#xe000;</span> Error</h2>
+      <div id="errorDialogBody" class="body"></div>
       <button id="errorDialogOk" class="button">OK</button>
+    </div>
+
+    <div id="splitsDialog" class="modal dialog">
+      <h2><span class="material-symbols-outlined icon">&#xf090;</span> Split APKs</h2>
+      <div style="margin-bottom: 12px;">
+        These are not meant to be installed individually!
+        You must install them alongside the base APK (using adb or an XAPK file).
+      </div>
+      <div id="splitsDialogBody" class="body"></div>
+      <button id="splitsDialogDone" class="button">Done</button>
+    </div>
+
+    <div id="xapkDialog" class="modal dialog">
+      <h2><span class="material-symbols-outlined icon">&#xf090;</span> XAPK Helper</h2>
+      <div id="xapkDialogBody" class="body">
+        <div class="section">
+          1. Download the base APK and select it in the input box below.
+          <a id="xapkDialogBaseDl" class="button secondary" target="_blank">
+            <span class="material-symbols-outlined">&#xf090;</span>
+            <span>Base APK</span>
+          </a>
+          <input id="baseApkInput" type="file" accept=".apk" class="file-input">
+        </div>
+        <div class="section">
+          2. Download one or more of the split APKs and select them in the input box below.
+          <div id="xapkDialogSplits"></div>
+          <input id="splitApksInput" type="file" multiple accept=".apk" class="file-input">
+        </div>
+        Once you're done, press the Create button below to get your XAPK file.
+      </div>
+      <div class="buttons">
+        <button id="xapkDialogCreate" class="button">Create</button>
+        <button id="xapkDialogClose" class="button">Close</button>
+      </div>
     </div>
 
     <script type="module" src="/src/index.ts"></script>

@@ -1,4 +1,7 @@
 import { TurnstileObject } from "turnstile-types";
+import { Zip, AsyncZipDeflate } from "fflate";
+import streamSaver from "streamsaver";
+import { md5 } from "hash-wasm";
 
 var mainInputWrapper = document.getElementById("mainInputWrapper") as HTMLDivElement;
 var mainInput = document.getElementById("mainInput") as HTMLInputElement;
@@ -13,13 +16,28 @@ var appVersion = document.getElementById("appVersion") as HTMLSpanElement;
 var appUpdatedAt = document.getElementById("appUpdatedAt") as HTMLSpanElement;
 var downloadBox = document.getElementById("downloadBox") as HTMLDivElement;
 var downloadButton = document.getElementById("downloadButton") as HTMLAnchorElement;
-var downloadSize = document.getElementById("downloadSize") as HTMLSpanElement;
+var downloadBtnLabel = document.getElementById("downloadBtnLabel") as HTMLSpanElement;
 
 var modalShadow = document.getElementById("modalShadow") as HTMLDivElement;
 var challengeModal = document.getElementById("challengeModal") as HTMLDivElement;
+
 var errorDialog = document.getElementById("errorDialog") as HTMLDivElement;
 var errorDialogBody = document.getElementById("errorDialogBody") as HTMLDivElement;
 var errorDialogOk = document.getElementById("errorDialogOk") as HTMLButtonElement;
+
+var splitsButton = document.getElementById("splitsButton") as HTMLAnchorElement;
+var splitsDialog = document.getElementById("splitsDialog") as HTMLDivElement;
+var splitsDialogBody = document.getElementById("splitsDialogBody") as HTMLDivElement;
+var splitsDialogDone = document.getElementById("splitsDialogDone") as HTMLButtonElement;
+
+var xapkButton = document.getElementById("xapkButton") as HTMLAnchorElement;
+var xapkDialog = document.getElementById("xapkDialog") as HTMLDivElement;
+var xapkDialogBaseDl = document.getElementById("xapkDialogBaseDl") as HTMLAnchorElement;
+var xapkDialogSplits = document.getElementById("xapkDialogSplits") as HTMLDivElement;
+var xapkDialogCreate = document.getElementById("xapkDialogCreate") as HTMLButtonElement;
+var xapkDialogClose = document.getElementById("xapkDialogClose") as HTMLButtonElement;
+var baseApkInput = document.getElementById("baseApkInput") as HTMLInputElement;
+var splitApksInput = document.getElementById("splitApksInput") as HTMLInputElement;
 
 interface ApiResponse<T> {
     code: number,
@@ -36,6 +54,7 @@ interface App {
     company: AppCompany,
     is_apk_ready: boolean,
     apk: AppApk,
+    split_apks?: AppSplitApk[],
     download?: string
 }
 
@@ -46,9 +65,16 @@ interface AppCompany {
 
 interface AppApk {
     updated_at?: string,
-    version_name: string,
-    version_code: number,
-    file_size?: string
+    version_name?: string,
+    version_code?: number,
+    file_size?: string,
+    base_apk_md5?: string
+}
+
+interface AppSplitApk {
+    url: string,
+    md5: string,
+    size: number
 }
 
 function show(element: HTMLElement) {
@@ -64,21 +90,38 @@ function isShown(element: HTMLElement) {
 }
 
 var appDetailsHeight: number;
-function showAppDetails(app: App) {
+function showAppDetails() {
+    if (!app) return;
     appIcon.src = app.icon_url + "?w=96";
     appName.innerText = app.display_name;
     appCompany.innerText = app.company.name;
-    if (app.is_apk_ready && app.apk.updated_at != null && app.apk.file_size != null && app.download) {
+    if (app.is_apk_ready && app.apk.updated_at != null && app.apk.file_size != null &&
+        app.apk.version_name != null && app.download)
+    {
         appVersion.innerText = app.apk.version_name;
         appUpdatedAt.innerText = app.apk.updated_at;
         downloadBox.classList.remove("na");
         downloadButton.href = app.download;
-        downloadSize.innerText = app.apk.file_size;
+
+        if (app.split_apks) {
+            splitsButton.style.removeProperty("display");
+            xapkButton.style.removeProperty("display");
+            downloadButton.classList.add("secondary");
+            downloadBtnLabel.innerText = "Base APK";
+        }
+        else {
+            splitsButton.style.display = "none";
+            xapkButton.style.display = "none";
+            downloadButton.classList.remove("secondary");
+            downloadBtnLabel.innerText = "Download (" + app.apk.file_size + ")";
+        }
     }
     else {
         appVersion.innerText = "N/A";
         appUpdatedAt.innerText = "N/A";
         downloadBox.classList.add("na");
+        splitsButton.style.display = "none";
+        xapkButton.style.display = "none";
     }
 
     show(appDetailsBox);
@@ -124,8 +167,13 @@ function hideModal(modal: HTMLElement) {
     hide(modal);
 }
 
-function showErrorDialog(message: string) {
+var errorModal: HTMLElement | undefined;
+function showErrorDialog(message: string, modal?: HTMLDivElement) {
     errorDialogBody.innerText = message;
+    if (modal) {
+        errorModal = modal;
+        hideModal(modal);
+    }
     showModal(errorDialog);
 }
 
@@ -165,6 +213,180 @@ mainInput.addEventListener("blur", () => {
 
 errorDialogOk.addEventListener("click", () => {
     hideModal(errorDialog);
+    if (errorModal) {
+        showModal(errorModal);
+        errorModal = undefined;
+    }
+});
+
+splitsDialogDone.addEventListener("click", () => {
+    hideModal(splitsDialog);
+});
+
+xapkDialogClose.addEventListener("click", () => {
+    hideModal(xapkDialog);
+});
+
+function formatSize(size: number): string {
+    var mib = size / 1048576;
+    return Math.floor(mib * 100) / 100 + "MB";
+}
+
+function createDownloadButton(label: string, href: string, isSecondary = false): HTMLAnchorElement {
+    var a = document.createElement("a");
+    a.className = "button";
+    if (isSecondary) a.classList.add("secondary");
+    a.href = href;
+    a.target = "_blank";
+
+    var icon = document.createElement("span");
+    icon.className = "material-symbols-outlined";
+    icon.innerText = "\uf090";
+
+    a.appendChild(icon);
+    a.appendChild(document.createTextNode(label));
+    return a;
+}
+
+function getSplitApkName(split: AppSplitApk) {
+    var url = split.url;
+    return url.slice(url.lastIndexOf("/")).split("-")[2];
+}
+
+function initSplitEntries(container: HTMLElement, splits: AppSplitApk[]) {
+    container.innerHTML = "";
+    for (var split of splits) {
+        var label = getSplitApkName(split); // config.XXX
+        label += " (";
+        label += formatSize(split.size);
+        label += ")";
+        var button = createDownloadButton(label, split.url, true);
+        container.appendChild(button);
+    }
+}
+
+splitsButton.addEventListener("click", () => {
+    if (!app || !app.split_apks) return;
+    initSplitEntries(splitsDialogBody, app.split_apks);
+    showModal(splitsDialog);
+});
+
+xapkButton.addEventListener("click", () => {
+    if (!app || !app.download || !app.split_apks) return;
+    xapkDialogBaseDl.href = app.download;
+    initSplitEntries(xapkDialogSplits, app.split_apks);
+    showModal(xapkDialog);
+});
+
+function readAsArrayBuffer(blob: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+        var reader = new FileReader;
+        reader.onload = function() {
+            resolve(reader.result as ArrayBuffer);
+        }
+        reader.onerror = function(e) {
+            reject(e);
+        }
+        reader.readAsArrayBuffer(blob);
+    });
+}
+
+async function readAsUint8Array(blob: Blob) {
+    return new Uint8Array(await readAsArrayBuffer(blob));
+}
+
+function createXapk() {
+    return new Promise<void>(async (resolve, reject) => {
+        if (!app || !app.package_id || !app.apk.version_code || !app.split_apks || !app.apk.base_apk_md5) {
+            return reject(new Error("Cannot create XAPK for this app."));
+        }
+
+        var baseApkFile = baseApkInput.files?.item(0);
+        if (!baseApkFile) return reject(new Error("Base APK file not selected."));
+
+        var splitApkFiles = splitApksInput.files;
+        if (!splitApkFiles || !splitApkFiles.length) {
+            return reject(new Error("No split APK files selected."));
+        }
+
+        var xapkFilename = app.package_id + "-" + app.apk.version_code + ".xapk";
+        var xapkFile = streamSaver.createWriteStream(xapkFilename);
+        var xapkWriter = xapkFile.getWriter();
+
+        var zip = new Zip;
+        zip.ondata = function(err, chunk, final) {
+            if (err) {
+                xapkWriter.abort();
+                return reject(err);
+            }
+            xapkWriter.write(chunk);
+            if (final) {
+                xapkWriter.close();
+                resolve();
+            }
+        }
+
+        var files = new Set<string>();
+        function addFile(filename: string, data: Uint8Array) {
+            var deflateStream = new AsyncZipDeflate(filename, { level: 0 });
+            zip.add(deflateStream);
+            files.add(deflateStream.filename);
+            deflateStream.push(data, true);
+        }
+
+        {
+            var data = await readAsUint8Array(baseApkFile);
+            if (await md5(data) != app.apk.base_apk_md5) {
+                xapkWriter.abort();
+                return reject(new Error("Base APK checksum mismatch (incorrect or corrupted file)."));
+            }
+            addFile(app.package_id + ".apk", data);
+        }
+
+        for (var file of splitApkFiles) {
+            var data = await readAsUint8Array(file);
+            var hash = await md5(data);
+            var foundSplit: AppSplitApk | undefined;
+            for (var split of app.split_apks) {
+                if (split.md5 == hash) {
+                    foundSplit = split;
+                    break;
+                }
+            }
+
+            if (!foundSplit) {
+                xapkWriter.abort();
+                return reject(new Error("Failed to identify split APK: " + file.name + " (incorrect or corrupted file)."));
+            }
+
+            var name = getSplitApkName(foundSplit) + ".apk";
+            if (files.has(name)) {
+                xapkWriter.abort();
+                return reject(new Error("Duplicate split APK files were selected."));
+            }
+
+            addFile(name, data);
+        }
+
+        zip.end();
+    });
+}
+
+xapkDialogCreate.addEventListener("click", async () => {
+    xapkDialogCreate.disabled = true;
+    xapkDialogClose.style.display = "none";
+    xapkDialogCreate.innerText = "Please wait...";
+
+    try {
+        await createXapk();
+    }
+    catch (e) {
+        showErrorDialog((e as Error).message, xapkDialog);
+    }
+
+    xapkDialogCreate.disabled = false;
+    xapkDialogClose.style.removeProperty("display");
+    xapkDialogCreate.innerText = "Create";
 });
 
 async function fetchApp(linkOrId: string): Promise<App> {
@@ -198,7 +420,7 @@ async function fetchApp(linkOrId: string): Promise<App> {
         throw new Error("Invalid app ID.");
     }
 
-    var res = await fetchWithTurnstile("/api/v1/app", {
+    var res = await fetchWithTurnstile("/api/v2/app", {
         method: "POST",
         body: JSON.stringify({ id: id.toString() }),
         headers: {
@@ -218,6 +440,7 @@ declare global {
     }
 }
 
+var app: App | undefined;
 window.init = function() {
     var working = false;
     submitButton.addEventListener("click", async () => {
@@ -233,7 +456,6 @@ window.init = function() {
         hideSubmitButton();
         var hideFinished = isShown(appDetailsBox) ? hideAppDetails() : Promise.resolve();
 
-        var app: App;
         try {
             app = await fetchApp(value);
         }
@@ -246,7 +468,7 @@ window.init = function() {
         }
 
         await hideFinished;
-        showAppDetails(app);
+        showAppDetails();
         showSubmitButton();
         working = false;
     });
@@ -256,5 +478,5 @@ window.init = function() {
             e.preventDefault();
             submitButton.click();
         }
-    })
+    });
 }

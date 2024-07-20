@@ -9,10 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/streamsaver": "^2.0.4",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
+    "hash-wasm": "^4.11.0",
+    "streamsaver": "^2.0.6",
     "turnstile-types": "^1.2.0"
   }
 }

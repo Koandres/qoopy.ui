@@ -34,8 +34,9 @@ body {
 .main {
     display: flex;
     width: 720px;
-    height: calc(100% - 64px);
-    margin: 32px 12px;
+    height: 100%;
+    padding: 32px 12px;
+    box-sizing: border-box;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
@@ -43,6 +44,7 @@ body {
 }
 
 .footer {
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -131,10 +133,28 @@ body {
     transition: 0.2s;
     user-select: none;
     text-align: center;
+    text-decoration: none;
 }
 
 .button:hover {
     background-color: #009fb8;
+}
+
+.button:disabled {
+    background-color: #008499;
+    cursor: not-allowed;
+}
+
+.button.secondary {
+    background-color: #43404e;
+}
+
+.button.secondary:hover {
+    background-color: #3b3943;
+}
+
+.button.secondary:disabled {
+    background-color: #302e36;
 }
 
 #submitButton {
@@ -181,12 +201,14 @@ body {
 .app-details-outer {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
 }
 
 .app-details-inner {
     display: flex;
+    align-items: flex-start;
+    min-width: 0;
 }
 
 #appIcon {
@@ -200,20 +222,28 @@ body {
     flex-direction: column;
     margin-left: 12px;
     justify-content: space-between;
+    min-width: 0;
 }
 
 #appName {
     font-weight: 600;
     font-size: 18px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 #appCompany {
     font-size: 14px;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
 }
 
 #downloadBox {
     margin-left: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 200px;
 }
 
 #loadingIcon {
@@ -263,11 +293,12 @@ body {
     background-color: #26242c;
     padding: 16px;
     border-radius: 8px;
-    width: calc(100% - 32px - 24px);
+    width: calc(100% - 24px);
+    box-sizing: border-box;
     left: 50%;
     top: 50%;
 
-    transform: translate(-50%, -50%) translate(0, 32px);
+    transform: translate(-50%, -50%);
     opacity: 0;
     pointer-events: none;
     transition: 0.2s;
@@ -283,23 +314,39 @@ body {
     max-width: 300px;
 }
 
-#errorDialog {
+.modal.dialog {
     display: flex;
     flex-direction: column;
     max-width: 420px;
+    max-height: 100vh;
+    overflow: auto;
 }
 
-#errorDialog .material-symbols-outlined {
+.modal.dialog .icon {
     color: #aaa;
     margin-bottom: 2px;
 }
 
-#errorDialog h2 {
-    margin: 0 0 16px 0;
+.modal.dialog h2 {
+    margin: 0 0 12px 0;
 }
 
-#errorDialogBody {
-    margin-bottom: 16px;
+.modal.dialog .body {
+    margin-bottom: 12px;
+}
+
+.modal.dialog .buttons {
+    display: flex;
+}
+
+.modal.dialog .buttons .button {
+    margin-right: 4px;
+    flex-grow: 1;
+    flex-basis: 1;
+}
+
+.modal.dialog .buttons .button:last-child {
+    margin-right: 0;
 }
 
 .download-na {
@@ -310,8 +357,8 @@ body {
     display: none;
 }
 
-#downloadButton {
-    text-decoration: none;
+#downloadBox .button {
+    margin-bottom: 8px;
 }
 
 #downloadBox.na #downloadButton {
@@ -320,6 +367,44 @@ body {
 
 #downloadBox.na .download-na {
     display: block;
+}
+
+#splitsDialogBody .button, #xapkDialogSplits .button {
+    margin-bottom: 4px;
+}
+
+#splitsDialogBody .button:last-child, #xapkDialogSplits .button:last-child {
+    margin-bottom: 0;
+}
+
+.file-input {
+    display: block;
+    border: 2px dashed #43404e;
+    padding: 8px;
+}
+
+#xapkDialogBody {
+    display: flex;
+    flex-direction: column;
+}
+
+#xapkDialogBody .section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #474352;
+    padding-bottom: 12px;
+}
+
+#xapkDialogBaseDl, #xapkDialogSplits {
+    margin: 8px 0;
+}
+
+#xapkDialogSplits {
+    max-height: 108px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .material-symbols-outlined {
@@ -352,10 +437,39 @@ body {
 
     .app-details-outer {
         flex-direction: column;
+        align-items: center;
     }
 
     .app-details-inner {
         width: 100%;
+    }
+
+    #downloadBox {
+        flex-direction: row;
+        min-width: unset;
+    }
+
+    #downloadBox .button {
+        margin-right: 4px;
+    }
+
+    #splitsButton {
+        margin-right: 0;
+    }
+}
+
+@media screen and (max-width: 450px) {
+    .app-details-outer {
+        align-items: stretch;
+    }
+
+    #downloadBox {
+        flex-direction: column;
+        min-width: unset;
+    }
+
+    #downloadBox .button {
+        margin-right: 0;
     }
 }
 
