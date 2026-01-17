@@ -419,8 +419,9 @@ async function fetchApp(linkOrId: string): Promise<App> {
     else if (!Number.isInteger(id)) {
         throw new Error("Invalid app ID.");
     }
-
-    var res = await fetchWithTurnstile("/api/v2/app", {
+    const API_BASE = "https://qoopy.leadrdrk.com"
+    
+    var res = await fetchWithTurnstile("${API_BASE}/api/v2/app", {
         method: "POST",
         body: JSON.stringify({ id: id.toString() }),
         headers: {
