@@ -421,7 +421,7 @@ async function fetchApp(linkOrId: string): Promise<App> {
     }
     const API_BASE = "https://qoopy.leadrdrk.com"
     
-    var res = await fetchWithTurnstile("${API_BASE}/api/v2/app", {
+    var res = await fetchWithTurnstile(`${API_BASE}/api/v2/app`, {
         method: "POST",
         body: JSON.stringify({ id: id.toString() }),
         headers: {
